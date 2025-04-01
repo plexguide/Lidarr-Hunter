@@ -111,18 +111,17 @@ services:
       - RANDOM_SELECTION=true
       - MONITORED_ONLY=true
       - SEARCH_MODE=artist
-    networks:
-      - your-network-name
-
-networks:
-  your-network-name:
-    external: true
 ```
 
 Then run:
 
 ```bash
 docker-compose up -d lidarr-hunter
+```
+
+To check on the status of the program, you should see new files downloading or you can type:
+```bash
+docker logs lidarr-hunter
 ```
 
 ### Unraid Users
