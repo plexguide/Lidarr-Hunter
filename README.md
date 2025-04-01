@@ -2,6 +2,8 @@
 
 <h2 align="center">Want to Help? Click the Star in the Upper-Right Corner! ⭐</h2>
 
+![image](https://github.com/user-attachments/assets/32ea6ab1-cf6d-43f2-b2aa-5953ef3bab01)
+
 **NOTE**  
 This utilizes Lidarr API Version - `1`. The Script: [lidarr-hunter.sh](lidarr-hunter.sh)
 
@@ -20,8 +22,6 @@ docker run -d --name lidarr-hunter \
 
 **Change Log:**
 - **v1**: Original code written
-
-![image](https://github.com/user-attachments/assets/3b606e4b-3b6c-4b31-a06e-fb9993266dd5)
 
 ### Other Project Guide (Just FYI)
 
