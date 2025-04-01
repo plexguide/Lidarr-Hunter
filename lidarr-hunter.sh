@@ -8,7 +8,7 @@ API_KEY=${API_KEY:-"your-api-key"}
 API_URL=${API_URL:-"http://your-lidarr-address:8686"}
 
 # How many items (artists, albums, or songs) to process before restarting the search cycle
-# Keep the number lower if using artist mode as it may result in more querys
+# Keep the number low if using artist/album mode as it may result in more querys
 MAX_ITEMS=${MAX_ITEMS:-1}
 
 # Sleep duration in seconds after processing an item (900=15min)
@@ -24,7 +24,7 @@ MONITORED_ONLY=${MONITORED_ONLY:-false}
 #   "artist" - process incomplete artists
 #   "album"  - process incomplete albums individually
 #   "song"   - process individual missing tracks
-SEARCH_MODE=${SEARCH_MODE:-"album"}
+SEARCH_MODE=${SEARCH_MODE:-"artist"}
 
 # ---------------------------
 # Helper Functions
