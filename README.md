@@ -65,7 +65,7 @@ The following environment variables can be configured:
 | `MAX_ITEMS` | Number of items to process before restarting cycle | 1 |
 | `SLEEP_DURATION` | Seconds to wait after processing an item (900=15min) | 900 |
 | `RANDOM_SELECTION` | Use random selection (`true`) or sequential (`false`) | true |
-| `MONITORED_ONLY` | Only process monitored artists/albums/tracks | false |
+| `MONITORED_ONLY` | Only process monitored artists/albums/tracks | true |
 | `SEARCH_MODE` | Processing mode: "artist", "album", or "song" | "artist" |
 
 **Search Modes Explained:**
@@ -87,7 +87,7 @@ docker run -d --name lidarr-hunter \
   -e MAX_ITEMS="1" \
   -e SLEEP_DURATION="900" \
   -e RANDOM_SELECTION="true" \
-  -e MONITORED_ONLY="false" \
+  -e MONITORED_ONLY="true" \
   -e SEARCH_MODE="artist" \
   admin9705/lidarr-hunter
 ```
@@ -109,7 +109,7 @@ services:
       - MAX_ITEMS=1
       - SLEEP_DURATION=900
       - RANDOM_SELECTION=true
-      - MONITORED_ONLY=false
+      - MONITORED_ONLY=true
       - SEARCH_MODE=artist
     networks:
       - your-network-name
