@@ -7,9 +7,9 @@ RUN apk add --no-cache bash curl jq
 # Set default environment variables for Lidarr Hunter
 ENV API_KEY="your-api-key" \
     API_URL="http://your-lidarr-address:8686" \
-    SEARCH_MODE="song" \
-    MONITORED_ONLY="false" \
-    MAX_ITEMS="10" \
+    SEARCH_MODE="artist" \
+    MONITORED_ONLY="true" \
+    MAX_ITEMS="1" \
     SLEEP_DURATION="900" \
     RANDOM_SELECTION="true"
 
