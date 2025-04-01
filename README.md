@@ -81,6 +81,7 @@ The simplest way to run Lidarr Hunter is via Docker:
 
 ```bash
 docker run -d --name lidarr-hunter \
+  --restart always \
   -e API_KEY="your-api-key" \
   -e API_URL="http://your-lidarr-address:8686" \
   -e MAX_ITEMS="1" \
@@ -101,7 +102,7 @@ services:
   lidarr-hunter:
     container_name: lidarr-hunter
     image: admin9705/lidarr-hunter
-    restart: unless-stopped
+    restart: always
     environment:
       - API_KEY=your-api-key
       - API_URL=http://lidarr:8686
