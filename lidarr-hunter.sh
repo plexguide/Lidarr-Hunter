@@ -18,7 +18,7 @@ SLEEP_DURATION=${SLEEP_DURATION:-900}
 RANDOM_SELECTION=${RANDOM_SELECTION:-true}
 
 # If MONITORED_ONLY is set to true, only process monitored artists/albums/tracks
-MONITORED_ONLY=${MONITORED_ONLY:-false}
+MONITORED_ONLY=${MONITORED_ONLY:-true}
 
 # Modes:
 #   "artist" - process incomplete artists
