@@ -32,6 +32,10 @@ This script continually searches your Lidarr library specifically for artists an
 * [Unraid Intel ARC Deployment](https://github.com/plexguide/Unraid_Intel-ARC_Deployment) - Convert videos to AV1 Format (I've saved 325TB encoding to AV1)
 * Visit [PlexGuide](https://plexguide.com) for more great scripts
 
+## PayPal Donations – Building My Daughter's Future
+
+My 12-year-old daughter is passionate about singing, dancing, and exploring STEM. She consistently earns A-B honors and dreams of a bright future. Every donation goes directly into her college fund, helping turn those dreams into reality. Thank you for your generous support!
+
 ## Features
 
 - 🔄 **Continuous Operation**: Runs indefinitely until manually stopped
