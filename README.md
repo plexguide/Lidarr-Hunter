@@ -36,6 +36,8 @@ This script continually searches your Lidarr library specifically for artists an
 
 My 12-year-old daughter is passionate about singing, dancing, and exploring STEM. She consistently earns A-B honors and dreams of a bright future. Every donation goes directly into her college fund, helping turn those dreams into reality. Thank you for your generous support!
 
+[![Donate with PayPal button](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/donate?hosted_button_id=58AYJ68VVMGSC)
+
 ## Features
 
 - 🔄 **Continuous Operation**: Runs indefinitely until manually stopped
