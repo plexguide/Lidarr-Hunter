@@ -5,42 +5,64 @@ on:
     branches:
       - main
       - dev
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-      # 1) Check out your repository code
-      - uses: actions/checkout@v3
+      # 1) Check out your repository code with full depth
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      # 2) Set up Docker Buildx
+      # 2) List files to verify huntarr.py is present
+      - name: List files in directory
+        run: ls -la
+
+      # 3) Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # 3) Log in to Docker Hub (requires DOCKERHUB_USERNAME & DOCKERHUB_PASSWORD secrets)
+      # 4) Log in to Docker Hub
       - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      # 4a) Build & Push if on 'main' branch
+      # 5a) Build & Push if on 'main' branch
       - name: Build and Push (main)
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: docker/build-push-action@v3
         with:
           context: .
           push: true
           tags: |
-            admin9705/lidarr-hunter:latest
-            admin9705/lidarr-hunter:${{ github.sha }}
-      # 4b) Build & Push if on 'dev' branch
+            huntarr/4lidarr:latest
+            huntarr/4lidarr:py-latest
+            huntarr/4lidarr:${{ github.sha }}
+
+      # 5b) Build & Push if on 'dev' branch
       - name: Build and Push (dev)
-        if: github.ref == 'refs/heads/dev'
+        if: github.ref == 'refs/heads/dev' && github.event_name != 'pull_request'
         uses: docker/build-push-action@v3
         with:
           context: .
           push: true
           tags: |
-            admin9705/lidarr-hunter:dev
-            admin9705/lidarr-hunter:${{ github.sha }}
+            huntarr/4lidarr:dev
+            huntarr/4lidarr:py-dev
+            huntarr/4lidarr:${{ github.sha }}
+      
+      # 5c) Just build on pull requests
+      - name: Build (PR)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: false
