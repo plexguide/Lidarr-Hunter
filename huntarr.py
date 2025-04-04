@@ -19,8 +19,7 @@ from typing import List, Dict, Any, Optional
 API_KEY = os.environ.get("API_KEY", "your-api-key")
 API_URL = os.environ.get("API_URL", "http://your-lidarr-address:8686")
 
-# How many items (artists or albums) to process per cycle for MISSING;
-# also used as a max “upgrade” count in track scanning.
+# How many items (artists or albums) to process per cycle for MISSING
 try:
     MAX_ITEMS = int(os.environ.get("MAX_ITEMS", "1"))
 except ValueError:
@@ -496,7 +495,7 @@ def main_loop() -> None:
     while True:
         logger.info(f"=== Starting Huntarr-Lidarr cycle (MODE={SEARCH_MODE}, TYPE={SEARCH_TYPE}) ===")
 
-        # 1) If "missing" or "both", handle missing logic first
+        # Only run missing search when SEARCH_TYPE is "missing" or "both"
         if SEARCH_TYPE in ["missing", "both"]:
             if SEARCH_MODE == "artist":
                 process_artists_missing()
@@ -506,7 +505,7 @@ def main_loop() -> None:
                 logger.warning(f"Unknown SEARCH_MODE={SEARCH_MODE}; defaulting to artist missing.")
                 process_artists_missing()
 
-        # 2) If "upgrade" or "both", handle track-level upgrades
+        # Only run upgrade search when SEARCH_TYPE is "upgrade" or "both"
         if SEARCH_TYPE in ["upgrade", "both"]:
             process_cutoff_upgrades()
 
