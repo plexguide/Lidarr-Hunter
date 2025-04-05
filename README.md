@@ -21,7 +21,7 @@
 - [Tips](#tips)
 - [Troubleshooting](#troubleshooting)
 
-## Overview
+## Overview 
 
 This script continually searches your Lidarr library specifically for artists and albums that are missing (monitored but not downloaded) and automatically triggers searches for that missing music. It's designed to run continuously while being gentle on your indexers, helping you gradually complete your music collection.
 
