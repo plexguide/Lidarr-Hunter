@@ -6,25 +6,37 @@ Handles processing for missing content in artist mode
 
 import random
 import time
+from typing import List, Dict, Any
 from utils.logger import logger
 from config import HUNT_MISSING_ITEMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION
 from api import get_artists_json, refresh_artist, missing_album_search, lidarr_request
 
-def process_artists_missing() -> None:
-    """Process artists with missing tracks"""
+def process_artists_missing(processed_artists: List[int] = None) -> List[int]:
+    """
+    Process artists with missing tracks
+    
+    Args:
+        processed_artists: List of artist IDs already processed
+        
+    Returns:
+        Updated list of processed artist IDs
+    """
     logger.info("=== Running in ARTIST MODE (Missing) ===")
+    
+    if processed_artists is None:
+        processed_artists = []
     
     # Skip if HUNT_MISSING_ITEMS is set to 0
     if HUNT_MISSING_ITEMS <= 0:
         logger.info("HUNT_MISSING_ITEMS is set to 0, skipping artist missing content")
-        return
+        return processed_artists
         
     artists = get_artists_json()
     if not artists:
         logger.error("ERROR: Unable to retrieve artist data. Retrying in 60s...")
         time.sleep(60)
         logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
-        return
+        return processed_artists
 
     # Filter for artists with missing tracks
     if MONITORED_ONLY:
@@ -33,25 +45,31 @@ def process_artists_missing() -> None:
             a for a in artists
             if a.get("monitored") is True
             and a.get("statistics", {}).get("trackCount", 0) > a.get("statistics", {}).get("trackFileCount", 0)
+            and a.get("id") not in processed_artists
         ]
     else:
         logger.info("MONITORED_ONLY=false => all incomplete artists.")
         incomplete_artists = [
             a for a in artists
             if a.get("statistics", {}).get("trackCount", 0) > a.get("statistics", {}).get("trackFileCount", 0)
+            and a.get("id") not in processed_artists
         ]
 
     if not incomplete_artists:
-        logger.info("No incomplete artists found. Waiting 60s...")
-        time.sleep(60)
-        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
-        return
+        if not processed_artists:
+            logger.info("No incomplete artists found. Waiting 60s...")
+            time.sleep(60)
+            logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
+        else:
+            logger.info("All incomplete artists already processed.")
+        return processed_artists
 
     logger.info(f"Found {len(incomplete_artists)} incomplete artist(s).")
     logger.info(f"Processing up to {HUNT_MISSING_ITEMS} artists this cycle.")
     
     processed_count = 0
     used_indices = set()
+    newly_processed = []
 
     # Process artists up to HUNT_MISSING_ITEMS
     while True:
@@ -91,13 +109,15 @@ def process_artists_missing() -> None:
             time.sleep(10)
             logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
             continue
-        logger.info(f"Refresh command accepted (ID={refresh_resp['id']}). Sleeping 5s...")
+        logger.info(f"Refresh command accepted (ID={refresh_resp['id']}). Waiting 5s...")
         time.sleep(5)
 
         # 2) MissingAlbumSearch
         search_resp = missing_album_search(artist_id)
         if search_resp and "id" in search_resp:
             logger.info(f"MissingAlbumSearch accepted (ID={search_resp['id']}).")
+            # Add to processed list
+            newly_processed.append(artist_id)
         else:
             logger.warning("WARNING: MissingAlbumSearch failed. Trying fallback 'AlbumSearch' by artist...")
             fallback_data = {
@@ -107,6 +127,8 @@ def process_artists_missing() -> None:
             fallback_resp = lidarr_request("command", method="POST", data=fallback_data)
             if fallback_resp and "id" in fallback_resp:
                 logger.info(f"Fallback AlbumSearch accepted (ID={fallback_resp['id']}).")
+                # Add to processed list
+                newly_processed.append(artist_id)
             else:
                 logger.warning("Fallback also failed. Skipping this artist.")
 
@@ -114,3 +136,6 @@ def process_artists_missing() -> None:
         logger.info(f"Processed artist. Sleeping {SLEEP_DURATION}s...")
         logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
         time.sleep(SLEEP_DURATION)
+    
+    # Return updated processed list
+    return processed_artists + newly_processed
