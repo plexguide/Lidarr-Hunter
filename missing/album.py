@@ -12,12 +12,13 @@ from api import get_artists_json, get_albums_for_artist, refresh_artist, album_s
 
 def process_albums_missing() -> None:
     """Process albums with missing tracks"""
+    logger.info("=== Running in ALBUM MODE (Missing) ===")
+    
     # Skip if HUNT_MISSING_ITEMS is set to 0
     if HUNT_MISSING_ITEMS <= 0:
-        logger.info("HUNT_MISSING_ITEMS is set to 0. Skipping missing albums check.")
+        logger.info("HUNT_MISSING_ITEMS is set to 0, skipping album missing content")
         return
-
-    logger.info("=== Running in ALBUM MODE (Missing) ===")
+        
     artists = get_artists_json()
     if not artists:
         logger.error("ERROR: No artist data. 60s wait...")
@@ -52,7 +53,8 @@ def process_albums_missing() -> None:
                     "artistId": artist_id,
                     "artistName": artist_name,
                     "albumId": album_id,
-                    "albumTitle": album_title
+                    "albumTitle": album_title,
+                    "missing": track_count - track_file_count
                 })
 
     if not incomplete_albums:
@@ -61,13 +63,15 @@ def process_albums_missing() -> None:
         return
 
     logger.info(f"Found {len(incomplete_albums)} incomplete album(s).")
+    logger.info(f"Processing up to {HUNT_MISSING_ITEMS} albums this cycle.")
+    
     processed_count = 0
     used_indices = set()
 
     # Process albums up to HUNT_MISSING_ITEMS
     while True:
-        if HUNT_MISSING_ITEMS > 0 and processed_count >= HUNT_MISSING_ITEMS:
-            logger.info(f"Reached HUNT_MISSING_ITEMS ({HUNT_MISSING_ITEMS}). Exiting loop.")
+        if processed_count >= HUNT_MISSING_ITEMS:
+            logger.info("Reached HUNT_MISSING_ITEMS. Exiting loop.")
             break
         if len(used_indices) >= len(incomplete_albums):
             logger.info("All incomplete albums processed. Exiting loop.")
@@ -91,8 +95,9 @@ def process_albums_missing() -> None:
         artist_name = album_obj["artistName"]
         album_id = album_obj["albumId"]
         album_title = album_obj["albumTitle"]
+        missing = album_obj.get("missing", 0)
 
-        logger.info(f"Processing incomplete album '{album_title}' by '{artist_name}'...")
+        logger.info(f"Processing incomplete album '{album_title}' by '{artist_name}' (missing {missing} tracks)...")
 
         # Refresh the artist
         refresh_resp = refresh_artist(artist_id)

@@ -9,6 +9,9 @@ from typing import List, Dict, Any, Optional
 from utils.logger import logger
 from config import API_KEY, API_URL
 
+# Create a session for reuse
+session = requests.Session()
+
 def lidarr_request(endpoint: str, method: str = "GET", data: Dict = None, params: Dict = None) -> Optional[Any]:
     """
     Perform a request to the Lidarr API (v1).
@@ -26,12 +29,13 @@ def lidarr_request(endpoint: str, method: str = "GET", data: Dict = None, params
     headers = {
         "X-Api-Key": API_KEY,
         "Content-Type": "application/json",
+        "Accept": "application/json"
     }
     try:
         if method.upper() == "GET":
-            resp = requests.get(url, headers=headers, params=params, timeout=30)
+            resp = session.get(url, headers=headers, params=params, timeout=30)
         else:  # Typically "POST"
-            resp = requests.post(url, headers=headers, json=data, timeout=30)
+            resp = session.post(url, headers=headers, json=data, timeout=30)
         resp.raise_for_status()
         return resp.json()
     except requests.RequestException as e:
@@ -70,7 +74,7 @@ def get_quality_profiles() -> Dict[int, Dict]:
             profiles[prof_id] = p
     return profiles
 
-def get_cutoff_unmet_albums(pageSize: int = 1000, page: int = 1) -> Optional[Dict]:
+def get_cutoff_unmet_albums(pageSize: int = 100, page: int = 1) -> Optional[Dict]:
     """
     Query Lidarr's 'wanted/cutoff' endpoint to get albums below cutoff directly.
     
@@ -118,13 +122,5 @@ def artist_album_search(artist_id: int) -> Optional[Dict]:
     data = {
         "name": "AlbumSearch",
         "artistIds": [artist_id],
-    }
-    return lidarr_request("command", method="POST", data=data)
-
-def track_search(track_id: int) -> Optional[Dict]:
-    """Search for a specific track"""
-    data = {
-        "name": "TrackSearch",
-        "trackIds": [track_id],
     }
     return lidarr_request("command", method="POST", data=data)

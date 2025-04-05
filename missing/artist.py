@@ -12,12 +12,13 @@ from api import get_artists_json, refresh_artist, missing_album_search, lidarr_r
 
 def process_artists_missing() -> None:
     """Process artists with missing tracks"""
+    logger.info("=== Running in ARTIST MODE (Missing) ===")
+    
     # Skip if HUNT_MISSING_ITEMS is set to 0
     if HUNT_MISSING_ITEMS <= 0:
-        logger.info("HUNT_MISSING_ITEMS is set to 0. Skipping missing artists check.")
+        logger.info("HUNT_MISSING_ITEMS is set to 0, skipping artist missing content")
         return
-
-    logger.info("=== Running in ARTIST MODE (Missing) ===")
+        
     artists = get_artists_json()
     if not artists:
         logger.error("ERROR: Unable to retrieve artist data. Retrying in 60s...")
@@ -45,12 +46,14 @@ def process_artists_missing() -> None:
         return
 
     logger.info(f"Found {len(incomplete_artists)} incomplete artist(s).")
+    logger.info(f"Processing up to {HUNT_MISSING_ITEMS} artists this cycle.")
+    
     processed_count = 0
     used_indices = set()
 
     # Process artists up to HUNT_MISSING_ITEMS
     while True:
-        if HUNT_MISSING_ITEMS > 0 and processed_count >= HUNT_MISSING_ITEMS:
+        if processed_count >= HUNT_MISSING_ITEMS:
             logger.info(f"Reached HUNT_MISSING_ITEMS ({HUNT_MISSING_ITEMS}). Exiting loop.")
             break
         if len(used_indices) >= len(incomplete_artists):
