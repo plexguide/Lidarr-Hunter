@@ -10,7 +10,8 @@ from utils.logger import logger
 from config import SEARCH_MODE, SEARCH_TYPE, log_configuration
 from missing.artist import process_artists_missing
 from missing.album import process_albums_missing
-from upgrade.track import process_cutoff_upgrades
+from upgrade.album import process_album_upgrades
+from upgrade.artist import process_artist_upgrades
 
 def main_loop() -> None:
     """Main processing loop for Huntarr-Lidarr"""
@@ -27,9 +28,15 @@ def main_loop() -> None:
                 logger.warning(f"Unknown SEARCH_MODE={SEARCH_MODE}; defaulting to artist missing.")
                 process_artists_missing()
 
-        # 2) If "upgrade" or "both", handle track-level upgrades
+        # 2) If "upgrade" or "both", handle upgrade logic 
         if SEARCH_TYPE in ["upgrade", "both"]:
-            process_cutoff_upgrades()
+            if SEARCH_MODE == "artist":
+                process_artist_upgrades()
+            elif SEARCH_MODE == "album":
+                process_album_upgrades()
+            else:
+                logger.warning(f"Unknown SEARCH_MODE={SEARCH_MODE} for upgrades; defaulting to artist.")
+                process_artist_upgrades()
 
         logger.info("Cycle complete. Waiting 60s before next cycle...")
         time.sleep(60)

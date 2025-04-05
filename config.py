@@ -29,8 +29,14 @@ RANDOM_SELECTION = os.environ.get("RANDOM_SELECTION", "true").lower() == "true"
 MONITORED_ONLY = os.environ.get("MONITORED_ONLY", "true").lower() == "true"
 
 # Search Configuration
-SEARCH_MODE = os.environ.get("SEARCH_MODE", "artist")  # "artist" or "album"
-SEARCH_TYPE = os.environ.get("SEARCH_TYPE", "missing")  # "missing", "upgrade", or "both"
+# SEARCH_MODE: "artist" or "album" (applies to both missing and upgrade logic)
+SEARCH_MODE = os.environ.get("SEARCH_MODE", "artist")
+
+# SEARCH_TYPE: "missing", "upgrade", or "both"
+# - "missing" => only missing items
+# - "upgrade" => only cutoff unmet upgrades
+# - "both"    => missing items first, then upgrades
+SEARCH_TYPE = os.environ.get("SEARCH_TYPE", "missing")
 
 # Debug Settings
 DEBUG_MODE = os.environ.get("DEBUG_MODE", "false").lower() == "true"
