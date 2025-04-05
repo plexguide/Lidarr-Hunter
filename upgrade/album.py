@@ -154,7 +154,7 @@ def process_album_upgrades() -> None:
             time.sleep(10)
 
         logger.info(f"Sleeping {SLEEP_DURATION}s after upgrade attempt...")
-        time.sleep(SLEEP_DURATION)
         logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
+        time.sleep(SLEEP_DURATION)
 
     logger.info(f"Completed processing {processed_count} album upgrades total in this run.")

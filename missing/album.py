@@ -120,5 +120,5 @@ def process_albums_missing() -> None:
 
         processed_count += 1
         logger.info(f"Album processed. Sleeping {SLEEP_DURATION}s...")
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")        
         time.sleep(SLEEP_DURATION)
-        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")

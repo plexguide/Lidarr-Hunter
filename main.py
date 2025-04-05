@@ -28,8 +28,8 @@ def main_loop() -> None:
         process_album_upgrades()
 
         logger.info("Cycle complete. Waiting 60s before next cycle...")
-        time.sleep(60)
         logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
+        time.sleep(60)
 
 if __name__ == "__main__":
     # Log configuration settings
