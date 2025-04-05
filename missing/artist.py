@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""
+Artist Mode Missing Logic
+Handles processing for missing content in artist mode
+"""
+
+import random
+import time
+from utils.logger import logger
+from config import MAX_ITEMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION
+from api import get_artists_json, refresh_artist, missing_album_search, lidarr_request
+
+def process_artists_missing() -> None:
+    """Process artists with missing tracks"""
+    logger.info("=== Running in ARTIST MODE (Missing) ===")
+    artists = get_artists_json()
+    if not artists:
+        logger.error("ERROR: Unable to retrieve artist data. Retrying in 60s...")
+        time.sleep(60)
+        return
+
+    # Filter for artists with missing tracks
+    if MONITORED_ONLY:
+        logger.info("MONITORED_ONLY=true => only monitored artists with missing tracks.")
+        incomplete_artists = [
+            a for a in artists
+            if a.get("monitored") is True
+            and a.get("statistics", {}).get("trackCount", 0) > a.get("statistics", {}).get("trackFileCount", 0)
+        ]
+    else:
+        logger.info("MONITORED_ONLY=false => all incomplete artists.")
+        incomplete_artists = [
+            a for a in artists
+            if a.get("statistics", {}).get("trackCount", 0) > a.get("statistics", {}).get("trackFileCount", 0)
+        ]
+
+    if not incomplete_artists:
+        logger.info("No incomplete artists found. Waiting 60s...")
+        time.sleep(60)
+        return
+
+    logger.info(f"Found {len(incomplete_artists)} incomplete artist(s).")
+    processed_count = 0
+    used_indices = set()
+
+    # Process artists up to MAX_ITEMS
+    while True:
+        if MAX_ITEMS > 0 and processed_count >= MAX_ITEMS:
+            logger.info(f"Reached MAX_ITEMS ({MAX_ITEMS}). Exiting loop.")
+            break
+        if len(used_indices) >= len(incomplete_artists):
+            logger.info("All incomplete artists processed. Exiting loop.")
+            break
+
+        # Select next artist (randomly or sequentially)
+        if RANDOM_SELECTION and len(incomplete_artists) > 1:
+            while True:
+                idx = random.randint(0, len(incomplete_artists) - 1)
+                if idx not in used_indices:
+                    break
+        else:
+            idx_candidates = [i for i in range(len(incomplete_artists)) if i not in used_indices]
+            if not idx_candidates:
+                break
+            idx = idx_candidates[0]
+
+        used_indices.add(idx)
+        artist = incomplete_artists[idx]
+        artist_id = artist["id"]
+        artist_name = artist.get("artistName", "Unknown Artist")
+        track_count = artist.get("statistics", {}).get("trackCount", 0)
+        track_file_count = artist.get("statistics", {}).get("trackFileCount", 0)
+        missing = track_count - track_file_count
+
+        logger.info(f"Processing artist: '{artist_name}' (ID={artist_id}), missing {missing} track(s).")
+
+        # 1) Refresh artist
+        refresh_resp = refresh_artist(artist_id)
+        if not refresh_resp or "id" not in refresh_resp:
+            logger.warning("WARNING: Could not refresh. Skipping this artist.")
+            time.sleep(10)
+            continue
+        logger.info(f"Refresh command accepted (ID={refresh_resp['id']}). Sleeping 5s...")
+        time.sleep(5)
+
+        # 2) MissingAlbumSearch
+        search_resp = missing_album_search(artist_id)
+        if search_resp and "id" in search_resp:
+            logger.info(f"MissingAlbumSearch accepted (ID={search_resp['id']}).")
+        else:
+            logger.warning("WARNING: MissingAlbumSearch failed. Trying fallback 'AlbumSearch' by artist...")
+            fallback_data = {
+                "name": "AlbumSearch",
+                "artistIds": [artist_id],
+            }
+            fallback_resp = lidarr_request("command", method="POST", data=fallback_data)
+            if fallback_resp and "id" in fallback_resp:
+                logger.info(f"Fallback AlbumSearch accepted (ID={fallback_resp['id']}).")
+            else:
+                logger.warning("Fallback also failed. Skipping this artist.")
+
+        processed_count += 1
+        logger.info(f"Processed artist. Sleeping {SLEEP_DURATION}s...")
+        time.sleep(SLEEP_DURATION)
