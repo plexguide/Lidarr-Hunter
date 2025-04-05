@@ -9,27 +9,22 @@ import sys
 from utils.logger import logger
 from config import HUNT_MISSING_MODE, log_configuration
 from missing.artist import process_artists_missing
-from missing.album import process_albums_missing
-from missing.both import process_both_missing
+from missing.album import process_albums_missing 
 from upgrade.album import process_album_upgrades
 
 def main_loop() -> None:
     """Main processing loop for Huntarr-Lidarr"""
     while True:
-        logger.info(f"=== Starting Huntarr-Lidarr cycle (HUNT_MISSING_MODE={HUNT_MISSING_MODE}) ===")
+        logger.info(f"=== Starting Huntarr-Lidarr cycle ===")
 
         # 1) Handle missing content based on HUNT_MISSING_MODE
-        if HUNT_MISSING_MODE == "artist":
+        if HUNT_MISSING_MODE == "artist" or HUNT_MISSING_MODE == "both":
             process_artists_missing()
-        elif HUNT_MISSING_MODE == "album":
+            
+        if HUNT_MISSING_MODE == "album" or HUNT_MISSING_MODE == "both":
             process_albums_missing()
-        elif HUNT_MISSING_MODE == "both":
-            process_both_missing()
-        else:
-            logger.warning(f"Unknown HUNT_MISSING_MODE={HUNT_MISSING_MODE}; defaulting to artist missing.")
-            process_artists_missing()
-
-        # 2) Handle album upgrades
+            
+        # 2) Handle album upgrade processing
         process_album_upgrades()
 
         logger.info("Cycle complete. Waiting 60s before next cycle...")
