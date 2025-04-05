@@ -6,10 +6,11 @@ Handles quality cutoff upgrade operations for albums
 
 import random
 import time
+import requests
 from typing import Dict, List
 from utils.logger import logger
-from config import HUNT_UPGRADE_ALBUMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION
-from api import refresh_artist, album_search, lidarr_request
+from config import HUNT_UPGRADE_ALBUMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION, API_URL, API_KEY
+from api import refresh_artist, album_search
 
 def get_cutoff_albums() -> List[Dict]:
     """
@@ -17,9 +18,9 @@ def get_cutoff_albums() -> List[Dict]:
     Simplified to match the curl approach.
     """
     try:
-        url = f"{lidarr_request.API_URL}/api/v1/wanted/cutoff"
+        url = f"{API_URL}/api/v1/wanted/cutoff"
         headers = {
-            "X-Api-Key": lidarr_request.API_KEY,
+            "X-Api-Key": API_KEY,
             "Accept": "application/json",
         }
         params = {
@@ -27,7 +28,7 @@ def get_cutoff_albums() -> List[Dict]:
             "page": 1
         }
         
-        response = lidarr_request.session.get(url, headers=headers, params=params, timeout=30)
+        response = requests.get(url, headers=headers, params=params, timeout=30)
         response.raise_for_status()
         
         data = response.json()
