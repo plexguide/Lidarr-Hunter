@@ -23,6 +23,7 @@ def process_artists_missing() -> None:
     if not artists:
         logger.error("ERROR: Unable to retrieve artist data. Retrying in 60s...")
         time.sleep(60)
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
         return
 
     # Filter for artists with missing tracks
@@ -43,6 +44,7 @@ def process_artists_missing() -> None:
     if not incomplete_artists:
         logger.info("No incomplete artists found. Waiting 60s...")
         time.sleep(60)
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
         return
 
     logger.info(f"Found {len(incomplete_artists)} incomplete artist(s).")
@@ -87,6 +89,7 @@ def process_artists_missing() -> None:
         if not refresh_resp or "id" not in refresh_resp:
             logger.warning("WARNING: Could not refresh. Skipping this artist.")
             time.sleep(10)
+            logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
             continue
         logger.info(f"Refresh command accepted (ID={refresh_resp['id']}). Sleeping 5s...")
         time.sleep(5)
@@ -110,3 +113,4 @@ def process_artists_missing() -> None:
         processed_count += 1
         logger.info(f"Processed artist. Sleeping {SLEEP_DURATION}s...")
         time.sleep(SLEEP_DURATION)
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")

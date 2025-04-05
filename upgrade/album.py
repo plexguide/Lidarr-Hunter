@@ -41,12 +41,8 @@ def get_cutoff_albums() -> List[Dict]:
             logger.info("No cutoff albums returned from API")
             return []
         
-        # Log the found albums
-        for album in records:
-            artist_name = album.get("artist", {}).get("artistName", "Unknown Artist")
-            album_title = album.get("title", "Unknown Album")
-            quality_name = album.get("quality", {}).get("quality", {}).get("name", "Unknown")
-            logger.info(f"Found album needing upgrade: {artist_name} - {album_title} [{quality_name}]")
+        # Only log the count, not each individual album
+        logger.info(f"Found {len(records)} album(s) needing upgrade.")
         
         return records
         
@@ -71,8 +67,6 @@ def process_album_upgrades() -> None:
     if not cutoff_albums:
         logger.info("No albums below cutoff found. No upgrades needed.")
         return
-
-    logger.info(f"Found {len(cutoff_albums)} album(s) needing upgrade.")
     
     # Prepare upgrade candidates with needed information
     upgrade_candidates = []
@@ -161,5 +155,6 @@ def process_album_upgrades() -> None:
 
         logger.info(f"Sleeping {SLEEP_DURATION}s after upgrade attempt...")
         time.sleep(SLEEP_DURATION)
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
 
     logger.info(f"Completed processing {processed_count} album upgrades total in this run.")

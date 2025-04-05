@@ -23,6 +23,7 @@ def process_albums_missing() -> None:
     if not artists:
         logger.error("ERROR: No artist data. 60s wait...")
         time.sleep(60)
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
         return
 
     incomplete_albums = []
@@ -60,6 +61,7 @@ def process_albums_missing() -> None:
     if not incomplete_albums:
         logger.info("No incomplete albums found. 60s wait...")
         time.sleep(60)
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
         return
 
     logger.info(f"Found {len(incomplete_albums)} incomplete album(s).")
@@ -104,6 +106,7 @@ def process_albums_missing() -> None:
         if not refresh_resp or "id" not in refresh_resp:
             logger.warning(f"WARNING: Could not refresh artist {artist_name}. Skipping album.")
             time.sleep(10)
+            logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
             continue
         logger.info(f"Refresh command accepted (ID={refresh_resp['id']}). Waiting 5s...")
         time.sleep(5)
@@ -118,3 +121,4 @@ def process_albums_missing() -> None:
         processed_count += 1
         logger.info(f"Album processed. Sleeping {SLEEP_DURATION}s...")
         time.sleep(SLEEP_DURATION)
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
