@@ -5,7 +5,7 @@
 ![image](https://github.com/user-attachments/assets/32ea6ab1-cf6d-43f2-b2aa-5953ef3bab01)
 
 **NOTE**: This utilizes Lidarr API Version - `1`. The Script: [lidarr-hunter.sh](lidarr-hunter.sh) 
-
+ 
 ## Table of Contents
 - [Overview](#overview)
 - [Related Projects](#related-projects)
