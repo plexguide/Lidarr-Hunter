@@ -15,12 +15,12 @@ COPY utils/ ./utils/
 # Default environment variables
 ENV API_KEY="your-api-key" \
     API_URL="http://your-lidarr-address:8686" \
-    MAX_ITEMS=1 \
+    HUNT_MISSING_ITEMS=1 \
+    HUNT_UPGRADE_ALBUMS=0 \
     SLEEP_DURATION=900 \
     RANDOM_SELECTION="true" \
     MONITORED_ONLY="true" \
-    SEARCH_MODE="artist" \
-    SEARCH_TYPE="missing" \
+    HUNT_MISSING_MODE="artist" \
     DEBUG_MODE="false"
 
 # Run the application

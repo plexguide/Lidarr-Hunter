@@ -7,11 +7,16 @@ Handles processing for missing content in album mode
 import random
 import time
 from utils.logger import logger
-from config import MAX_ITEMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION
+from config import HUNT_MISSING_ITEMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION
 from api import get_artists_json, get_albums_for_artist, refresh_artist, album_search
 
 def process_albums_missing() -> None:
     """Process albums with missing tracks"""
+    # Skip if HUNT_MISSING_ITEMS is set to 0
+    if HUNT_MISSING_ITEMS <= 0:
+        logger.info("HUNT_MISSING_ITEMS is set to 0. Skipping missing albums check.")
+        return
+
     logger.info("=== Running in ALBUM MODE (Missing) ===")
     artists = get_artists_json()
     if not artists:
@@ -59,10 +64,10 @@ def process_albums_missing() -> None:
     processed_count = 0
     used_indices = set()
 
-    # Process albums up to MAX_ITEMS
+    # Process albums up to HUNT_MISSING_ITEMS
     while True:
-        if MAX_ITEMS > 0 and processed_count >= MAX_ITEMS:
-            logger.info("Reached MAX_ITEMS. Exiting loop.")
+        if HUNT_MISSING_ITEMS > 0 and processed_count >= HUNT_MISSING_ITEMS:
+            logger.info(f"Reached HUNT_MISSING_ITEMS ({HUNT_MISSING_ITEMS}). Exiting loop.")
             break
         if len(used_indices) >= len(incomplete_albums):
             logger.info("All incomplete albums processed. Exiting loop.")
