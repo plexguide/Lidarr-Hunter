@@ -1,194 +1,150 @@
 #!/usr/bin/env python3
 """
-Album Upgrade Logic
-Handles quality cutoff upgrade operations for albums
+Album Mode Missing Logic
+Handles processing for missing content in album mode
 """
 
 import random
 import time
-import requests
-from typing import Dict, List, Optional, Tuple, Union, Any, Bool
+from typing import List, Dict, Any
 from utils.logger import logger
-from config import HUNT_UPGRADE_ALBUMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION, API_URL, API_KEY
-from api import refresh_artist, album_search
+from config import HUNT_MISSING_ITEMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION
+from api import get_artists_json, get_albums_for_artist, refresh_artist, album_search
 
-def get_cutoff_albums() -> List[Dict]:
+def process_albums_missing(processed_albums: List[int] = None) -> List[int]:
     """
-    Directly query Lidarr's 'wanted/cutoff' endpoint to get albums below cutoff.
-    Simplified to match the curl approach.
-    """
-    try:
-        url = f"{API_URL}/api/v1/wanted/cutoff"
-        headers = {
-            "X-Api-Key": API_KEY,
-            "Accept": "application/json",
-        }
-        params = {
-            "pageSize": 100,
-            "page": 1
-        }
-        
-        response = requests.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
-        
-        data = response.json()
-        if not data or not isinstance(data, dict):
-            logger.warning("Invalid response format from wanted/cutoff API")
-            return []
-        
-        records = data.get("records", [])
-        if not records:
-            logger.info("No cutoff albums returned from API")
-            return []
-        
-        # Only log the count, not each individual album
-        logger.info(f"Found {len(records)} album(s) needing upgrade.")
-        
-        return records
-        
-    except Exception as e:
-        logger.error(f"Error getting cutoff albums: {e}")
-        return []
-
-def debug_api_request(url: str, method: str = "GET", headers: Dict = None, params: Dict = None, data: Dict = None) -> Dict:
-    """
-    Make a debug API request to Lidarr and log the response
-    """
-    logger.info(f"Making debug API request: {method} {url}")
-    logger.debug(f"Headers: {headers}")
+    Process albums with missing tracks
     
-    if method == "GET" and params:
-        logger.debug(f"Params: {params}")
-    elif method == "POST" and data:
-        logger.debug(f"Data: {data}")
+    Args:
+        processed_albums: List of album IDs already processed
         
-    try:
-        if method == "GET":
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-        else:  # Typically "POST"
-            response = requests.post(url, headers=headers, json=data, timeout=30)
-            
-        response.raise_for_status()
-        resp_data = response.json()
-        
-        logger.debug(f"Response status: {response.status_code}")
-        logger.debug(f"Response data: {resp_data}")
-        
-        return resp_data
-    except Exception as e:
-        logger.error(f"API request error: {e}")
-        return {}
-        
-def process_album_upgrades() -> bool:
-    """
-    Gets albums with quality below cutoff and initiates searches for better quality.
-    
     Returns:
-        True if any processing was done, False otherwise
+        Updated list of processed album IDs
     """
-    logger.info("=== Checking for Album Quality Upgrades (Cutoff Unmet) ===")
+    logger.info("=== Running in ALBUM MODE (Missing) ===")
     
-    # If HUNT_UPGRADE_ALBUMS is set to 0, skip upgrade processing
-    if HUNT_UPGRADE_ALBUMS <= 0:
-        logger.info("HUNT_UPGRADE_ALBUMS is set to 0, skipping album upgrades")
-        return False
+    if processed_albums is None:
+        processed_albums = []
     
-    # Get cutoff albums directly from Lidarr's API
-    cutoff_albums = get_cutoff_albums()
-    
-    if not cutoff_albums:
-        logger.info("No albums below cutoff found. No upgrades needed.")
-        return False
+    # Skip if HUNT_MISSING_ITEMS is set to 0
+    if HUNT_MISSING_ITEMS <= 0:
+        logger.info("HUNT_MISSING_ITEMS is set to 0, skipping album missing content")
+        return processed_albums
+        
+    artists = get_artists_json()
+    if not artists:
+        logger.error("ERROR: No artist data. 60s wait...")
+        time.sleep(60)
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
+        return processed_albums
 
-    # Prepare upgrade candidates with needed information
-    upgrade_candidates = []
-    for album in cutoff_albums:
-        album_id = album.get("id")
-        album_title = album.get("title", "Unknown Album")
-        artist = album.get("artist", {})
-        artist_id = artist.get("id")
+    incomplete_albums = []
+
+    # Gather all incomplete albums from all artists
+    for artist in artists:
+        artist_id = artist["id"]
         artist_name = artist.get("artistName", "Unknown Artist")
-        monitored = album.get("monitored", False)
-        
-        # Skip albums where we can't get IDs
-        if not album_id or not artist_id:
+        artist_monitored = artist.get("monitored", False)
+
+        if MONITORED_ONLY and not artist_monitored:
             continue
+
+        albums = get_albums_for_artist(artist_id) or []
+        for alb in albums:
+            album_id = alb["id"]
             
-        # Skip unmonitored albums if MONITORED_ONLY is enabled
-        if MONITORED_ONLY and not monitored:
-            logger.debug(f"Skipping unmonitored album: {artist_name} - {album_title}")
-            continue
-        
-        # Add to upgrade candidates
-        upgrade_candidates.append({
-            "artistId": artist_id,
-            "artistName": artist_name,
-            "albumId": album_id,
-            "albumTitle": album_title
-        })
-    
-    if not upgrade_candidates:
-        logger.info("No monitored albums found for upgrade.")
-        return False
-    
-    logger.info(f"Processing {min(HUNT_UPGRADE_ALBUMS, len(upgrade_candidates))} of {len(upgrade_candidates)} candidate album(s) for upgrade")
+            # Skip already processed albums
+            if album_id in processed_albums:
+                continue
+                
+            album_title = alb.get("title", "Unknown Album")
+            album_monitored = alb.get("monitored", False)
+
+            if MONITORED_ONLY and not album_monitored:
+                continue
+
+            track_count = alb.get("statistics", {}).get("trackCount", 0)
+            track_file_count = alb.get("statistics", {}).get("trackFileCount", 0)
+            if track_count > track_file_count:
+                # incomplete album
+                incomplete_albums.append({
+                    "artistId": artist_id,
+                    "artistName": artist_name,
+                    "albumId": album_id,
+                    "albumTitle": album_title,
+                    "missing": track_count - track_file_count
+                })
+
+    if not incomplete_albums:
+        if not processed_albums:
+            logger.info("No incomplete albums found. 60s wait...")
+            time.sleep(60)
+            logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
+        else:
+            logger.info("All incomplete albums already processed.")
+        return processed_albums
+
+    logger.info(f"Found {len(incomplete_albums)} incomplete album(s).")
+    logger.info(f"Processing up to {HUNT_MISSING_ITEMS} albums this cycle.")
     
     processed_count = 0
     used_indices = set()
+    newly_processed = []
 
-    # Process albums up to HUNT_UPGRADE_ALBUMS
+    # Process albums up to HUNT_MISSING_ITEMS
     while True:
-        if processed_count >= HUNT_UPGRADE_ALBUMS:
-            logger.info(f"Reached HUNT_UPGRADE_ALBUMS={HUNT_UPGRADE_ALBUMS}. Stopping upgrade loop.")
+        if processed_count >= HUNT_MISSING_ITEMS:
+            logger.info("Reached HUNT_MISSING_ITEMS. Exiting loop.")
             break
-        if len(used_indices) >= len(upgrade_candidates):
-            logger.info("All upgrade candidates processed.")
+        if len(used_indices) >= len(incomplete_albums):
+            logger.info("All incomplete albums processed. Exiting loop.")
             break
 
         # Select next album (randomly or sequentially)
-        if RANDOM_SELECTION and len(upgrade_candidates) > 1:
+        if RANDOM_SELECTION and len(incomplete_albums) > 1:
             while True:
-                idx = random.randint(0, len(upgrade_candidates) - 1)
+                idx = random.randint(0, len(incomplete_albums) - 1)
                 if idx not in used_indices:
                     break
         else:
-            idx_candidates = [i for i in range(len(upgrade_candidates)) if i not in used_indices]
+            idx_candidates = [i for i in range(len(incomplete_albums)) if i not in used_indices]
             if not idx_candidates:
                 break
             idx = idx_candidates[0]
 
         used_indices.add(idx)
-        album_obj = upgrade_candidates[idx]
+        album_obj = incomplete_albums[idx]
         artist_id = album_obj["artistId"]
         artist_name = album_obj["artistName"]
         album_id = album_obj["albumId"]
         album_title = album_obj["albumTitle"]
+        missing = album_obj.get("missing", 0)
 
-        logger.info(f"Upgrading album '{album_title}' by '{artist_name}'...")
+        logger.info(f"Processing incomplete album '{album_title}' by '{artist_name}' (missing {missing} tracks)...")
 
-        # Refresh the artist first
-        ref_resp = refresh_artist(artist_id)
-        if not ref_resp or "id" not in ref_resp:
-            logger.warning("WARNING: Refresh command failed. Skipping this album.")
+        # Refresh the artist
+        refresh_resp = refresh_artist(artist_id)
+        if not refresh_resp or "id" not in refresh_resp:
+            logger.warning(f"WARNING: Could not refresh artist {artist_name}. Skipping album.")
             time.sleep(10)
+            logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
             continue
-        logger.info(f"Refresh accepted (ID={ref_resp['id']}). Waiting 5s...")
+        logger.info(f"Refresh command accepted (ID={refresh_resp['id']}). Waiting 5s...")
         time.sleep(5)
 
-        # Perform album search for better quality
-        srch_resp = album_search(album_id)
-        if srch_resp and "id" in srch_resp:
-            logger.info(f"AlbumSearch command accepted (ID={srch_resp['id']}).")
-            processed_count += 1
-            logger.info(f"Processed {processed_count}/{HUNT_UPGRADE_ALBUMS} album upgrades this cycle.")
+        # AlbumSearch
+        search_resp = album_search(album_id)
+        if search_resp and "id" in search_resp:
+            logger.info(f"AlbumSearch command accepted (ID={search_resp['id']}).")
+            # Add to processed list
+            newly_processed.append(album_id)
         else:
-            logger.warning(f"WARNING: AlbumSearch failed for album ID={album_id}.")
-            time.sleep(10)
-            continue
+            logger.warning(f"WARNING: AlbumSearch command failed for album '{album_title}'.")
 
-        logger.info(f"Sleeping {SLEEP_DURATION}s after upgrade attempt...")
-        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
+        processed_count += 1
+        logger.info(f"Album processed. Sleeping {SLEEP_DURATION}s...")
         time.sleep(SLEEP_DURATION)
-
-    logger.info(f"Completed processing {processed_count} album upgrades total in this run.")
-    return processed_count > 0
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
+    
+    # Return updated processed list
+    return processed_albums + newly_processed

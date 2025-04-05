@@ -7,7 +7,7 @@ Handles quality cutoff upgrade operations for albums
 import random
 import time
 import requests
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple, Union, Any, Bool
 from utils.logger import logger
 from config import HUNT_UPGRADE_ALBUMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION, API_URL, API_KEY
 from api import refresh_artist, album_search
@@ -49,25 +49,57 @@ def get_cutoff_albums() -> List[Dict]:
     except Exception as e:
         logger.error(f"Error getting cutoff albums: {e}")
         return []
+
+def debug_api_request(url: str, method: str = "GET", headers: Dict = None, params: Dict = None, data: Dict = None) -> Dict:
+    """
+    Make a debug API request to Lidarr and log the response
+    """
+    logger.info(f"Making debug API request: {method} {url}")
+    logger.debug(f"Headers: {headers}")
+    
+    if method == "GET" and params:
+        logger.debug(f"Params: {params}")
+    elif method == "POST" and data:
+        logger.debug(f"Data: {data}")
         
-def process_album_upgrades() -> None:
+    try:
+        if method == "GET":
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+        else:  # Typically "POST"
+            response = requests.post(url, headers=headers, json=data, timeout=30)
+            
+        response.raise_for_status()
+        resp_data = response.json()
+        
+        logger.debug(f"Response status: {response.status_code}")
+        logger.debug(f"Response data: {resp_data}")
+        
+        return resp_data
+    except Exception as e:
+        logger.error(f"API request error: {e}")
+        return {}
+        
+def process_album_upgrades() -> bool:
     """
     Gets albums with quality below cutoff and initiates searches for better quality.
+    
+    Returns:
+        True if any processing was done, False otherwise
     """
     logger.info("=== Checking for Album Quality Upgrades (Cutoff Unmet) ===")
     
     # If HUNT_UPGRADE_ALBUMS is set to 0, skip upgrade processing
     if HUNT_UPGRADE_ALBUMS <= 0:
         logger.info("HUNT_UPGRADE_ALBUMS is set to 0, skipping album upgrades")
-        return
+        return False
     
     # Get cutoff albums directly from Lidarr's API
     cutoff_albums = get_cutoff_albums()
     
     if not cutoff_albums:
         logger.info("No albums below cutoff found. No upgrades needed.")
-        return
-    
+        return False
+
     # Prepare upgrade candidates with needed information
     upgrade_candidates = []
     for album in cutoff_albums:
@@ -97,7 +129,7 @@ def process_album_upgrades() -> None:
     
     if not upgrade_candidates:
         logger.info("No monitored albums found for upgrade.")
-        return
+        return False
     
     logger.info(f"Processing {min(HUNT_UPGRADE_ALBUMS, len(upgrade_candidates))} of {len(upgrade_candidates)} candidate album(s) for upgrade")
     
@@ -139,6 +171,7 @@ def process_album_upgrades() -> None:
         if not ref_resp or "id" not in ref_resp:
             logger.warning("WARNING: Refresh command failed. Skipping this album.")
             time.sleep(10)
+            logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
             continue
         logger.info(f"Refresh accepted (ID={ref_resp['id']}). Waiting 5s...")
         time.sleep(5)
@@ -152,9 +185,12 @@ def process_album_upgrades() -> None:
         else:
             logger.warning(f"WARNING: AlbumSearch failed for album ID={album_id}.")
             time.sleep(10)
+            logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
+            continue
 
         logger.info(f"Sleeping {SLEEP_DURATION}s after upgrade attempt...")
-        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
         time.sleep(SLEEP_DURATION)
+        logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
 
     logger.info(f"Completed processing {processed_count} album upgrades total in this run.")
+    return processed_count > 0

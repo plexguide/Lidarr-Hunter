@@ -105,8 +105,8 @@ def main_loop() -> None:
         # Only wait if processing was actually done
         if processing_done:
             logger.info("Cycle complete. Waiting 60s before next cycle...")
-            logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
             time.sleep(60)
+            logger.info("⭐ Tool Great? Donate @ https://donate.plex.one for Daughter's College Fund!")
         else:
             # Shorter wait if nothing was processed
             logger.info("No processing performed. Waiting 10s before next cycle...")
