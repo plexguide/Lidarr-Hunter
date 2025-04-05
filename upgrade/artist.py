@@ -6,7 +6,7 @@ Handles quality cutoff upgrade operations for artists (all albums)
 
 import random
 import time
-from typing import Dict, List
+from typing import Dict, List, Set
 from utils.logger import logger
 from config import MAX_ITEMS, SLEEP_DURATION, MONITORED_ONLY, RANDOM_SELECTION
 from api import (
@@ -14,45 +14,145 @@ from api import (
     refresh_artist, lidarr_request
 )
 
-def get_artist_upgrade_status(artist_id: int, profiles: Dict[int, Dict]) -> bool:
+def get_cutoff_albums() -> Dict[int, List[Dict]]:
     """
-    Check if an artist has any albums that need upgrades
+    Directly query Lidarr's 'wanted/cutoff' endpoint to get albums below cutoff,
+    and organize them by artist.
     
-    Args:
-        artist_id: Lidarr artist ID
-        profiles: Dictionary of quality profiles keyed by profile ID
-        
     Returns:
-        True if any album needs a quality upgrade, False otherwise
+        Dictionary mapping artist IDs to lists of albums needing upgrade
     """
-    albums = get_albums_for_artist(artist_id) or []
-    for album in albums:
-        if MONITORED_ONLY and not album.get("monitored", False):
+    response = lidarr_request("wanted/cutoff", "GET")
+    if not response or not isinstance(response, dict):
+        logger.warning("Failed to retrieve cutoff albums from API")
+        return {}
+    
+    records = response.get("records", [])
+    if not records:
+        logger.info("No cutoff albums returned from API")
+        return {}
+    
+    # Group albums by artist ID
+    artists_albums = {}
+    for album in records:
+        artist_id = album.get("artistId")
+        if not artist_id:
             continue
             
-        if not album.get("statistics", {}).get("sizeOnDisk", 0) > 0:
-            # Skip albums with no files on disk
-            continue
+        if artist_id not in artists_albums:
+            artists_albums[artist_id] = []
             
-        profile_id = album.get("qualityProfileId")
-        if not profile_id or profile_id not in profiles:
-            continue
-            
-        profile = profiles[profile_id]
-        cutoff_id = profile.get("cutoff")
+        artists_albums[artist_id].append(album)
+    
+    return artists_albums
+
+def get_artist_with_upgrade_albums() -> List[Dict]:
+    """
+    Get a list of artists who have albums needing upgrade,
+    using both the Lidarr API and manual checking.
+    
+    Returns:
+        List of artists with albums needing upgrades
+    """
+    # Get artists with cutoff albums directly from API
+    artists_with_upgrades = []
+    artists_cutoff_albums = get_cutoff_albums()
+    
+    if artists_cutoff_albums:
+        # Use direct API results
+        logger.info(f"Found {len(artists_cutoff_albums)} artist(s) with albums needing upgrade via API.")
         
-        # Get the album's quality info
-        album_quality = album.get("quality", {})
-        if not album_quality:
-            continue
-            
-        album_quality_id = album_quality.get("quality", {}).get("id", 0)
-        
-        if isinstance(cutoff_id, int) and isinstance(album_quality_id, int):
-            if album_quality_id < cutoff_id:
-                return True
+        for artist_id, albums in artists_cutoff_albums.items():
+            # Get artist details
+            artist_data = lidarr_request(f"artist/{artist_id}", "GET")
+            if not artist_data:
+                continue
                 
-    return False
+            # Skip unmonitored artists if MONITORED_ONLY is enabled
+            if MONITORED_ONLY and not artist_data.get("monitored", False):
+                continue
+                
+            # Skip if all albums are unmonitored and MONITORED_ONLY is enabled
+            if MONITORED_ONLY:
+                all_unmonitored = True
+                for album in albums:
+                    if album.get("monitored", False):
+                        all_unmonitored = False
+                        break
+                if all_unmonitored:
+                    continue
+            
+            # Add artist to candidates list
+            artists_with_upgrades.append({
+                "artistId": artist_id,
+                "artistName": artist_data.get("artistName", "Unknown Artist"),
+                "albumCount": len(albums)
+            })
+    else:
+        # Fallback to manual scanning
+        logger.info("Falling back to manual artist/album quality check...")
+        
+        # Get quality profiles
+        profiles = get_quality_profiles()
+        if not profiles:
+            logger.info("No quality profiles available. Cannot determine artists with upgradable albums.")
+            return []
+            
+        # Get all artists
+        artists = get_artists_json()
+        if not artists:
+            logger.error("No artist data available")
+            return []
+            
+        # Check each artist for albums needing upgrade
+        for artist in artists:
+            if MONITORED_ONLY and not artist.get("monitored", False):
+                continue
+                
+            artist_id = artist["id"]
+            artist_name = artist.get("artistName", "Unknown Artist")
+            
+            # Get the artist's albums
+            albums = get_albums_for_artist(artist_id) or []
+            upgrade_albums = []
+            
+            for album in albums:
+                if MONITORED_ONLY and not album.get("monitored", False):
+                    continue
+                    
+                # Check for the qualityCutoffNotMet flag
+                if album.get("qualityCutoffNotMet", False):
+                    upgrade_albums.append(album)
+                    continue
+                    
+                # Otherwise check if album has files but needs quality upgrade
+                if album.get("statistics", {}).get("sizeOnDisk", 0) > 0:
+                    # Album is fully downloaded
+                    track_count = album.get("statistics", {}).get("trackCount", 0)
+                    track_file_count = album.get("statistics", {}).get("trackFileCount", 0)
+                    
+                    if track_count == track_file_count:
+                        # Check quality
+                        profile_id = album.get("qualityProfileId")
+                        if profile_id and profile_id in profiles:
+                            profile = profiles[profile_id]
+                            cutoff_id = profile.get("cutoff")
+                            
+                            quality_id = album.get("quality", {}).get("quality", {}).get("id", 0)
+                            
+                            if isinstance(cutoff_id, int) and isinstance(quality_id, int):
+                                if quality_id < cutoff_id:
+                                    upgrade_albums.append(album)
+            
+            # If artist has albums needing upgrade, add to list
+            if upgrade_albums:
+                artists_with_upgrades.append({
+                    "artistId": artist_id,
+                    "artistName": artist_name,
+                    "albumCount": len(upgrade_albums)
+                })
+    
+    return artists_with_upgrades
 
 def process_artist_upgrades() -> None:
     """
@@ -61,33 +161,8 @@ def process_artist_upgrades() -> None:
     """
     logger.info("=== Checking for Artist-level Quality Upgrades (Cutoff Unmet) ===")
 
-    # 1) Retrieve all quality profiles
-    profiles = get_quality_profiles()
-    if not profiles:
-        logger.info("No quality profiles available. Cannot determine cutoff unmet artists.")
-        return
-
-    # 2) Retrieve all artists
-    artists = get_artists_json()
-    if not artists:
-        logger.error("No artist data. Cannot process upgrades.")
-        return
-
-    # 3) Collect all artists with albums needing upgrade
-    upgrade_candidates = []
-    for artist in artists:
-        if MONITORED_ONLY and not artist.get("monitored", False):
-            continue
-
-        artist_id = artist["id"]
-        artist_name = artist.get("artistName", "Unknown Artist")
-        
-        # Check if artist has any albums needing upgrade
-        if get_artist_upgrade_status(artist_id, profiles):
-            upgrade_candidates.append({
-                "artistId": artist_id,
-                "artistName": artist_name
-            })
+    # Get artists with albums needing upgrade
+    upgrade_candidates = get_artist_with_upgrade_albums()
 
     if not upgrade_candidates:
         logger.info("No artists with albums below cutoff found. No upgrades needed.")
@@ -122,8 +197,9 @@ def process_artist_upgrades() -> None:
         artist_obj = upgrade_candidates[idx]
         artist_id = artist_obj["artistId"]
         artist_name = artist_obj["artistName"]
+        album_count = artist_obj.get("albumCount", "Unknown")
 
-        logger.info(f"Upgrading albums for artist '{artist_name}'...")
+        logger.info(f"Upgrading {album_count} album(s) for artist '{artist_name}'...")
 
         # Refresh the artist first
         ref_resp = refresh_artist(artist_id)

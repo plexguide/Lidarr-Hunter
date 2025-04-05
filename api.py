@@ -9,10 +9,18 @@ from typing import List, Dict, Any, Optional
 from utils.logger import logger
 from config import API_KEY, API_URL
 
-def lidarr_request(endpoint: str, method: str = "GET", data: Dict = None) -> Optional[Any]:
+def lidarr_request(endpoint: str, method: str = "GET", data: Dict = None, params: Dict = None) -> Optional[Any]:
     """
     Perform a request to the Lidarr API (v1).
-    Example endpoint: "artist", "album", "track", "command", or "qualityprofile".
+    
+    Args:
+        endpoint: API endpoint (e.g., "artist", "album", "wanted/cutoff")
+        method: HTTP method ("GET" or "POST")
+        data: Request body for POST requests
+        params: URL parameters for GET requests
+        
+    Returns:
+        API response as dict/list or None if request failed
     """
     url = f"{API_URL}/api/v1/{endpoint}"
     headers = {
@@ -21,7 +29,7 @@ def lidarr_request(endpoint: str, method: str = "GET", data: Dict = None) -> Opt
     }
     try:
         if method.upper() == "GET":
-            resp = requests.get(url, headers=headers, timeout=30)
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
         else:  # Typically "POST"
             resp = requests.post(url, headers=headers, json=data, timeout=30)
         resp.raise_for_status()
@@ -62,6 +70,25 @@ def get_quality_profiles() -> Dict[int, Dict]:
             profiles[prof_id] = p
     return profiles
 
+def get_cutoff_unmet_albums(pageSize: int = 1000, page: int = 1) -> Optional[Dict]:
+    """
+    Query Lidarr's 'wanted/cutoff' endpoint to get albums below cutoff directly.
+    
+    Args:
+        pageSize: Number of records per page
+        page: Page number to retrieve
+        
+    Returns:
+        Dictionary with 'page', 'pageSize', 'totalRecords', 'records' keys
+    """
+    params = {
+        "pageSize": pageSize,
+        "page": page,
+        "sortKey": "title",
+        "sortDirection": "ascending"
+    }
+    return lidarr_request("wanted/cutoff", "GET", params=params)
+
 def refresh_artist(artist_id: int) -> Optional[Dict]:
     """Refresh metadata for an artist"""
     data = {
@@ -83,6 +110,14 @@ def album_search(album_id: int) -> Optional[Dict]:
     data = {
         "name": "AlbumSearch",
         "albumIds": [album_id],
+    }
+    return lidarr_request("command", method="POST", data=data)
+
+def artist_album_search(artist_id: int) -> Optional[Dict]:
+    """Search for all albums for an artist"""
+    data = {
+        "name": "AlbumSearch",
+        "artistIds": [artist_id],
     }
     return lidarr_request("command", method="POST", data=data)
 
